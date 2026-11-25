@@ -1,0 +1,30 @@
+[package]
+name = "rayforce-rs-ipc"
+description = "RayforceDB's IPC wire protocol in pure Rust: an encoder, a decoder and a blocking client, with no C stubs and no embedded engine"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/deepmarker/rayforce-rs-ipc"
+homepage = "https://github.com/deepmarker/rayforce-rs-ipc"
+documentation = "https://docs.rs/rayforce-rs-ipc"
+keywords = ["rayforce", "ipc", "database", "serialization", "client"]
+categories = ["database", "encoding", "network-programming"]
+exclude = ["/.github", "/tests/fixtures"]
+
+[lib]
+name = "rayforce_ipc"
+path = "src/lib.rs"
+
+[dependencies]
+
+[dev-dependencies]
+
+[lints.rust]
+missing_docs = "warn"
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "warn"
+doc_markdown = "warn"

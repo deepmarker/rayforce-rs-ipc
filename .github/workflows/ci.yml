@@ -1,0 +1,51 @@
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  test:
+    name: test (${{ matrix.rust }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: [stable, beta]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        if: matrix.rust == 'stable'
+        run: cargo fmt --check
+      - name: Clippy
+        if: matrix.rust == 'stable'
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Test
+        run: cargo test --all-targets
+
+  live:
+    name: live test against a real server
+    runs-on: ubuntu-latest
+    # The unit and golden-byte tests need nothing; this job proves the other end agrees, which is
+    # the only test that matters for a wire protocol. It builds RayforceDB's core from source.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build rayforce
+        run: |
+          git clone --depth 1 https://github.com/RayforceDB/rayforce.git
+          make -C rayforce -j"$(nproc)"
+          echo "$PWD/rayforce" >> "$GITHUB_PATH"
+      - name: Live test
+        run: cargo test --test live -- --nocapture
