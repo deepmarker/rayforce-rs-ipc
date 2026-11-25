@@ -88,6 +88,30 @@ fn depth_batch(rows: usize) -> Value {
 }
 
 #[test]
+fn a_request_can_carry_its_own_deadline() {
+    let Some(server) = server(2) else {
+        eprintln!("skipping the live test: rayforce is not on PATH");
+        return;
+    };
+    let mut conn = Conn::connect("127.0.0.1", server.port).expect("connect");
+    let answer = conn
+        .send_sync_timeout(&Value::Str("(+ 40 2)".into()), Duration::from_secs(5))
+        .expect("request with a deadline");
+    assert_eq!(answer, Value::I64(42));
+    // The deadline is per request: the next one passes its own.
+    let answer = conn
+        .send_sync_timeout(&Value::Str("(+ 1 1)".into()), Duration::from_secs(5))
+        .expect("second request");
+    assert_eq!(answer, Value::I64(2));
+    assert_eq!(
+        conn.send_sync_timeout(&Value::Null, Duration::ZERO)
+            .unwrap_err()
+            .to_string(),
+        "a send timeout must be greater than zero"
+    );
+}
+
+#[test]
 fn encode_and_read_back() {
     let Some(server) = server(0) else {
         eprintln!("skipping the live test: rayforce is not on PATH");

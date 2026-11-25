@@ -187,6 +187,43 @@ impl Conn {
         self.send_sync_with(value, |_| {})
     }
 
+    /// [`Conn::send_sync`], with a deadline on the request.
+    ///
+    /// The deadline covers the write and the wait for the answer. A timeout leaves the frame
+    /// half read, so the connection is not reusable afterwards: reconnect rather than retry. The
+    /// connection's own options bound only the connect and the handshake.
+    ///
+    /// # Errors
+    ///
+    /// As [`Conn::send_sync`], plus [`Error::Io`] with [`std::io::ErrorKind::WouldBlock`] or
+    /// [`std::io::ErrorKind::TimedOut`] when the deadline passes.
+    pub fn send_sync_timeout(&mut self, value: &Value, timeout: Duration) -> Result<Value> {
+        self.send_sync_timeout_with(value, timeout, |_| {})
+    }
+
+    /// [`Conn::send_sync_timeout`], with a handler for the frames the server pushes meanwhile.
+    ///
+    /// # Errors
+    ///
+    /// As [`Conn::send_sync_timeout`].
+    pub fn send_sync_timeout_with(
+        &mut self,
+        value: &Value,
+        timeout: Duration,
+        on_push: impl FnMut(Value),
+    ) -> Result<Value> {
+        if timeout.is_zero() {
+            return Err(Error::protocol("a send timeout must be greater than zero"));
+        }
+        self.stream.set_read_timeout(Some(timeout))?;
+        self.stream.set_write_timeout(Some(timeout))?;
+        let result = self.send_sync_with(value, on_push);
+        // Back to no deadline: the next request may pass its own.
+        let _ = self.stream.set_read_timeout(None);
+        let _ = self.stream.set_write_timeout(None);
+        result
+    }
+
     /// [`Conn::send_sync`], with a handler for the frames the server pushes in the meantime.
     ///
     /// # Errors
